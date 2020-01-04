@@ -102,6 +102,7 @@ crs.geo <- crs
 proj4string(df2) <- crs.geo
 filename <- "WCTSS_ROV_SubstrateOnly"
 dsn <- getwd()
+outfile <- paste0(getwd(),"/WCTSS_ROV_SubstrateOnly.csv")
 
-writeOGR(df2, dsn=dsn, layer=filename, driver="ESRI Shapefile") #, overwrite_layers=TRUE )
-write.table(df2,"C:/Users/daviessa/Documents/CURRENT PROJECTS/Substrate models/Validation data/ROV/WCTSS_ROV_SubstrateOnly.csv", sep=",", row.names=F)
+writeOGR(df2, dsn=dsn, layer=filename, driver="ESRI Shapefile", overwrite_layer=TRUE )
+write.table(df2,outfile, sep=",", row.names=F)
