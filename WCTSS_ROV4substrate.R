@@ -9,23 +9,25 @@
 
 require(rgdal)
 require(sf)
-require(dplyr)
-require(plyr)
+require(tidyverse)
 require(sp)
+require(rstudioapi)
 
-setwd("~/CURRENT PROJECTS/Substrate models/Validation data/ROV")
+# Set working directory 
+setwd("C:/Users/daviessa/Documents/CURRENT PROJECTS/Substrate models/Validation data/ROV")
 
 # Read in shapefile
-dsn="T:/Substrate/2013 - 2015 WCTSS_ROV"
+dsn="T:/Substrate/VALIDATION DATA/ROV_2013_2015"
 lay="WCTSS_ROV_SpeciesSubstrateObs"
 
-#shp <- readOGR(dsn="T:/Substrate/2013 - 2015 WCTSS_ROV", layer="WCTSS_ROV_SpeciesSubstrateObs")
-shp <- read_sf(dsn = dsn, layer = lay)
+#shp <- readOGR(dsn = dsn, layer = lay)
+#shp <- read_sf(dsn = dsn, layer = lay) # is this suppose to read it faster??
 crs <- proj4string(shp) 
 bbox(shp)
 
-saveRDS(shp, "shp.Rds") 
+saveRDS(shp, "shp.rds") 
 plot(shp)
+shp <- readRDS("shp.rds")
 
 # Pull out coords and attribute data and add coords to dataframe
 coords <- as.data.frame(shp@coords)
@@ -66,7 +68,7 @@ count(df1, "SbdmnnS")
 count(df1, "SbdmnnP")
 
 # Read in substrate category table
-sub.cat <- read.csv( "F:/R/MY_PROJECTS/DiveSurveys_DataPrep/Data/LookupTbls/SubstrateCategories.csv", header=T, sep="," )
+sub.cat <- read.csv( "C:/Users/daviessa/Documents/R/PROJECTS_MY/DiveSurveys_DataPrep/Data/LookupTbls/SubstrateCategories.csv", header=T, sep="," )
 
 # Rename columns to match WCTSS data
 colnames(sub.cat)[colnames(sub.cat)=="Substrate1"] <- "DmnntSb"
@@ -81,6 +83,7 @@ colnames(df2)[colnames(df2)=="SubstrateCat.Nme"] <- "BType4.nme"
 
 count(df2, "Sub.cat")
 count(df2, "OnBottm")
+head(df2,3)
 
 # Pull out the NA's to examine them - this is a check to determine if they exist
 df.na <- df2[is.na(df2$Sub.cat),]
