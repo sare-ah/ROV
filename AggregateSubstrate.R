@@ -58,13 +58,13 @@ head(new.pts)
 
 # Calculate substrate mode for each unique raster cell
 substrate <- new.pts %>%
-  group_by(cellID) %>%
+  group_by(PrjctNm,cellID) %>%
   drop_na(RMSM.cat) %>%
   mutate(x.coord = max(coords.x)) %>%
   mutate(y.coord = max(coords.y)) %>%
-  mutate(cnt = length(RMSM.cat)) %>%
-  mutate(modeSubst = Mode(RMSM.cat)) %>%
-  distinct(x.coord,y.coord,PrjctNm, TrnsctN,cnt,modeSubst,cellID)
+  mutate(cntROVobs = length(RMSM.cat)) %>%
+  mutate(RMSM.cat = Mode(RMSM.cat)) %>%
+  distinct(x.coord,y.coord,PrjctNm,TrnsctN,cntROVobs,RMSM.cat,cellID)
 head(substrate)
 summary(substrate)
 
@@ -76,7 +76,7 @@ proj4string(substrate) <- crs.geo
 # Plot to check results
 plot(substrate)
 
-# Save as RDS, shp, and csv
+# Save as RDS, shp, and csv on local drive
 rds.name <- paste0(getwd(),"/ROV_validationData.rds")
 saveRDS(substrate, rds.name)
 filename <- "ROV_ValidationData"
@@ -86,6 +86,9 @@ outfile <- paste0(getwd(),"/ROV_ValidationData.csv")
 outfile
 write.table(substrate,outfile, sep=",", row.names=F)
 
+# Save as shp on Spatial datasets drive
+dsn <- "T:/Substrate/VALIDATION DATA/ROV_2013_2015/Validation_data4Substrate_model"
+writeOGR(substrate, dsn=dsn, layer=filename, driver="ESRI Shapefile", overwrite_layer=TRUE )
 
 
 
