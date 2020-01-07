@@ -21,7 +21,7 @@ require(rstudioapi)
 setwd("C:/Users/daviessa/Documents/CURRENT PROJECTS/Substrate models/Validation data/ROV")
 
 # Read in shapefile
-# dsn="T:/Substrate/VALIDATION DATA/ROV_2013_2015"
+# dsn="T:/Substrate/VALIDATION DATA/ROV_2013_2015/SHP_from_annotations"
 # lay="WCTSS_ROV_SpeciesSubstrateObs"
 #shp <- readOGR(dsn = dsn, layer = lay)
 #shp <- read_sf(dsn = dsn, layer = lay) # is this suppose to read it faster??
@@ -29,7 +29,7 @@ setwd("C:/Users/daviessa/Documents/CURRENT PROJECTS/Substrate models/Validation 
 
 # Read in RDS
 shp <- readRDS("shp.rds")
-plot(shp)
+#plot(shp)
 crs <- proj4string(shp) 
 bbox(shp)
 
@@ -45,6 +45,7 @@ colnames(df)[colnames(df)=="coords.x2"] <- "coords.y"
 # Rows containing species data, NAs, or incomplete data
 df1 <- dplyr::select(df, Datetim,TrnsctD,TextTim,PrjctNm,TrnsctN,OnBottm,DmnntSb,DmnntPr,SbdmnnS,SbdmnnP,dtstr,Depth,coords.x,coords.y)
 df1 <- unique(df1)
+summary(df1)
 
 # Recode survey - original df was incomplete
 df1$Survey1 <- as.factor(substr((as.character(df1$PrjctNm)), 1, 11))
@@ -88,15 +89,10 @@ count(allpts, "Sub.cat")
 count(allpts, "OnBottm")
 head(allpts,3)
 
-# Pull out the NA's to examine them - this is a check to determine if they exist
-df.na <- df2[is.na(allpts$Sub.cat),]
-#summary(df.na)
+# Pull out the NA's (if they exist) to examine them 
+df.na <- allpts[is.na(allpts$RMSM.cat),]
+plyr::empty(df.na)
  
-# # Look for unique combo's of substrates to update crosswalk table
-# df.sub <- unique(dplyr::select(df.na, DmnntSb, SbdmnnS))
-# df.sub <- arrange(df.sub,DmnntSb)
-# df.sub
-
 # Write as a shapefile in Albers projection
 coordinates(allpts) <- c("coords.x","coords.y") 
 # Albers
@@ -112,8 +108,5 @@ writeOGR(allpts, dsn=dsn, layer=filename, driver="ESRI Shapefile", overwrite_lay
 outfile <- paste0(getwd(),"/WCTSS_ROV_SubstrateOnly.csv")
 outfile
 write.table(allpts,outfile, sep=",", row.names=F)
-plot(allpts)
+#plot(allpts)
 
-
-
-# Test for NA's

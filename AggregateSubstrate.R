@@ -1,7 +1,10 @@
 ###############################################################################
 # Objective: Create validation data for substrate model
 # 
-# Methods:  
+# Methods:  Use cellFromXY() to determine corresponding raster cell number 
+#           for each data point. Group by cell ID and calculate most common
+#           substrate code. Output dataset reduced to one data point for each 
+#           raster cell.
 #
 # Author:   Sarah Davies 
 #
@@ -12,13 +15,12 @@ require(rgdal)
 require(sf)
 require(tidyverse)
 require(sp)
-require(rstudioapi)
 require(raster)
 
 # Set working directory 
 setwd("C:/Users/daviessa/Documents/CURRENT PROJECTS/Substrate models/Validation data/ROV")
 
-# Calculate mode
+# Function to calculate mode
 Mode <- function(x) {
   ux <- unique(x)
   ux[which.max(tabulate(match(x, ux)))]
