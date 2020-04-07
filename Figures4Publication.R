@@ -1,27 +1,25 @@
-knitr::opts_chunk$set(message = FALSE, warning = FALSE)
-###################################################### #
-###  Script to make a BC map                       ### #
-###  Author:  D.K. Okamoto (modified by Jenn Burt) ### #
-###################################################### #
-
+# Add description
+#----------------
 
 library(cowplot)
 # Libraries needed to run this code
 library(raster)
-library(maps) 
-library(mapdata)
-library(maptools)
-library(rgeos)
 library(rgdal)
-library(ggplot2)
-library(ggsn)
 library(tidyverse)
-library(here)
 
+library(sf)
 library(sp)
 
 setwd("C:/Users/daviessa/Documents/CURRENT_PROJECTS/Substrate_models/Figures4Publication")
 
+# ***To do***
+# Build loops / apply function to:
+# Grab all shp
+# Fortify
+# Plot
+# Cowplot
+# Play with insets
+# ***********
 
 
 # Input data
@@ -35,62 +33,54 @@ path <- paste0(getwd(),"/","Obs_per1kmGrid")
 obslist <- list.files(path = path, pattern='\\.shp$', 
                       all.files=TRUE, full.names=TRUE)
 obslist
+nmes <- c("HG","NCC","QCS","SoG","WCVI")
 
 # Read all shp into a list using function shapefile from raster
 obs <- lapply(obslist, shapefile)
+names(obs) <- nmes
 
-# Read in each shp - sf & rgdal
+# Determine range of count values for each region
+CntRng <- vector("list",5)
+names(CntRng) <- nmes
+
+for (i in 1:length(obs)){
+  CntRng[[i]] <- range(obs[[i]]@data$Cnt)
+}
+CntRng
+
+# Build breaks from range values
+#brks <- c(75,150,225)
+
+# Read in each shp - sf & rgdal - to read in simple features I think they need special fields already? Check class notes
+#------------------------------
 # qcs.sf <- st_read("F:/GIS/Requests 2019/Heatmaps4Substrate/Obs_per1kmGrid/QCS_Obs_1kmGrid.shp")
 qcs <- readOGR(dsn = "F:/GIS/Requests 2019/Heatmaps4Substrate/Obs_per1kmGrid", layer="QCS_Obs_1kmGrid")
-vi <- readOGR(dsn = "F:/GIS/Requests 2019/Heatmaps4Substrate/Obs_per1kmGrid", layer="WCVI_Obs_1kmGrid")
+sog <- readOGR(dsn = "F:/GIS/Requests 2019/Heatmaps4Substrate/Obs_per1kmGrid", layer="SoG_Obs_1kmGrid")
 
 
-# plot(st_geometry(qcs.sf))
-# 
-# ggplot() +
-#   geom_sf(data=qcs.sf, aes(fill = Cnt)) +
-#   scale_y_continuous(breaks = 34:36)
-#   
-# library(mapview)
-# mapview(qcs.sf["Cnt"], col.regions = sf.colors(10))
+sog <- st_read("F:/GIS/Requests 2019/Heatmaps4Substrate/Obs_per1kmGrid/SoG_Obs_1kmGrid.shp", package="sf")
 
-
-# Pull out the 5 regions
-#hg <- obs[[1]]
-# ncc <- obs[[2]]
-# qcs <- obs[[3]]
-# sog <- obs[[4]]
-# wcvi <- obs[[5]]
-
-# ***To do***
-# Build loops / apply function to:
-# Grab all shp
-# Fortify
-# Plot
-# Cowplot
-# Play with insets
-# ***********
 
 # ggplot does not process spatial polygon data frames directly
 # Need to transfer polygons into a dataframe using fortify
 # generate a unique ID for each polygon to fortify the data
 # in order to plot polygons, first fortify the data
 qcs@data$id <- rownames(qcs@data)
-vi@data$id <- rownames(vi@data)
+sog@data$id <- rownames(sog@data)
 
 # create a data.frame from our spatial object
 qcsdata <- fortify(qcs, region = "id")
-vidata <- fortify(vi, region = "id")
+sog.data <- fortify(sog, region = "id")
 
 # merge the "fortified" data with the data from our spatial object
 qcsdf <- merge(qcsdata, qcs@data, by = "id")
-vidf <- merge(vidata, vi@data, by = "id")
+sog.df <- merge(sog.data, sog@data, by = "id")
 
-# plot on continuous variable
+# First plot attempt
 pq <- ggplot(data = qcsdf, aes(x = long, y = lat, group = group, fill = Cnt)) +
   geom_polygon() +
   geom_path(color = "white", size = 0.2) +
-  scale_fill_gradient(breaks=c(33,66,99), labels=c("Low","Medium","High")) + 
+  scale_fill_gradient(breaks=brks, labels=c("Low","Medium","High")) + 
   coord_equal() +
   theme(panel.background=element_blank())+
   theme(panel.background= element_rect(color="black")) +
@@ -98,19 +88,43 @@ pq <- ggplot(data = qcsdf, aes(x = long, y = lat, group = group, fill = Cnt)) +
   labs(title = "QCS")
 print(pq)
 
-
-pv<- ggplot(data = vidf, aes(x = long, y = lat, group = group, fill = Cnt)) +
+# Better colours, better background?? Check differences and fix
+p.sog <- ggplot(data = sog.df, aes(x = long, y = lat, group = group, fill = Cnt)) +
   geom_polygon() +
-  geom_path(color = "white", size = 0.2) +
-  scale_fill_gradient(breaks=c(33,66,99), labels=c("Low","Medium","High")) + 
-  coord_equal() +
-  theme(panel.background=element_blank())+
-  theme(panel.background= element_rect(color="black")) +
-  theme(axis.title = element_blank(), axis.text = element_blank()) +
-  labs(title = "WCVI")
-print(pv)
+  scale_fill_gradient(low="blue", high="red") +
+  coord_sf(crs = 3005) 
+print(p.sog)
 
-cowplot::plot_grid(pv, pq, nrow=1, labels=c("WCVI","QCS"),
+# Make smaller polygon for victoria only 
+# OR can we just limit the extent of the data within the plotting screen?
+# Google of answer!
+#---------------------------------------
+# Need to start working with simple features
+
+# Use widget to build bounding box
+# (using http://arthur-e.github.io/Wicket/sandbox-gmaps3.html)
+area <- st_as_sfc("POLYGON((-123.6090656891057 48.72785160096076,-123.2080647125432 48.72785160096076,-123.2080647125432 48.30576888069326,-123.6090656891057 48.30576888069326,-123.6090656891057 48.72785160096076))")
+area <- st_set_crs(area, 3005)
+
+# Crop SoG data - but which spatial format??? Check notes
+sog_sp <- as(sog, "Spatial")
+sog_sf <- sf::st_as_sf(sog_sp)
+coast <- read_sf("C:/Users/daviessa/Documents/R/Courses/TESA Spatial Stats 2019/Practicals/data/coastline")
+
+cropped_sog <- sf::st_crop(coast,area)
+
+
+# Plot smaller map
+p.vic <- ggplot(data = sog.df, aes(x = long, y = lat, group = group, fill = Cnt)) +
+  geom_polygon() +
+  coord_sf(crs = 3005) +
+  scale_fill_gradient(low="blue", high="red") 
+p.vic
+
+
+# Plot together and alter layout
+#-------------------------------
+cowplot::plot_grid(pq, ps, nrow=1, labels=c("QCS","SoG"),
                    label_x = .15, label_y = 0.85, label_fontface = )
 
 # plot(qcs)
@@ -132,113 +146,6 @@ cowplot::plot_grid(pv, pq, nrow=1, labels=c("WCVI","QCS"),
 # 
 # cowplot::plot_grid(p.hg, p.ncc, nrow=1, labels=c("HG","NCC"),
 #                    label_x = .15, label_y = 0.85, label_fontface = )
-
-
-
-
-# Transform to LL coordinate system
-library(sp)
-
-# Plot
-#-----
-library(PBSmapping)
-data("nepacLL")
-source("C:/Users/daviessa/Documents/R/Courses/PBS Mapping course/0 Initialize.R")
-
-# plotMap(nepacLL)
-# 
-# plotBC = function(xlim=c(-134,-124), ylim=c(48,54.5), 
-#                   zlev=seq(200,1200,200), ...)
-# {
-#   data(nepacLL,nepacLLhigh)
-#   coast = if (diff(xlim)<5) nepacLLhigh else nepacLL
-#   # clin = contourLines(bcBathymetry, levels=zlev)
-#   # poly = convCP(clin)
-#   #isob = clipLines(poly$PolySet,xlim=xlim,ylim=ylim)
-#   pdat = poly$PolyData
-#   # attr(isob,"projection") <- "LL"
-#   # clrFN = colorRampPalette(c("cyan4","blue","navy"))
-#   # clrs = clrFN(length(zlev))
-#   plotMap(coast,xlim=xlim,ylim=ylim,col="lemonchiffon",border="grey50",plt=NULL)
-#   #addLines(isob, col=clrs, ...)
-#   #invisible(isob)
-# }
-
-
-# # one example
-# plotGSL = function(coastlines, xlim = c(-70, -55), ylim = c(46, 52), ...) {
-#   plotMap(coastlines, xlim = xlim, ylim = ylim, bg = clr$sea, col = clr$land, tck = -0.014, las = 1, 
-#           ...)
-# }
-# data(worldLLhigh)
-# myBC <- worldLLhigh  # longitudes in our region are given as °E
-# #myBC <- clipPolys(myBC, xlim = c(250, 300), ylim = c(48,54.5))
-# myBC <- clipPolys(myBC, xlim = c(280, 320), ylim = c(48,54.5)) # EXAMPLE
-# # we make a smaller copy of the map data file. Eq. to -80 to -20°W Note that I made it larger than
-# # the GSL so that I can easily plot a larger area, which I need to do from time to time Note that
-# # polygons have to be closed to the smaller region
-# myBC$X <- myBC$X - 360  # we make all longitudes negatives (longitudes West)
-# plotGSL(myBC)
-
-# another example
-plotMap(nepacLL, col=clr$land, bg=clr$sea)
-
-longitude <- c(-134, -122)
-latitude <- c(48, 55)
-plotMap(nepacLL, col=clr$land, bg=clr$sea, xlim = longitude, ylim = latitude)
-points()
-
-## Plot the map
-data(nepacLLhigh)       # DFO BC Coastline data - high resolution
-plotMap(nepacLLhigh, xlim=c(-128.52, -127.93), ylim=c(51.56, 52.07), col="grey90", bg="white", tckMinor = 0,
-        xlab="", ylab="", lwd=0.5)
-box()
-#add a scale bar
-#map.scale(x=-128.455, y=51.61, ratio=FALSE, relwidth=0.2) # could not find function
-
-
-plot(drops, pch = 1, col = "steelblue", add = T)
-plot(rov, pch=3, col="red", add = T)
-
-
-
-# ############## Make a map with the sites ################## #
-# ############# Using DFO coastline data file ################
-# 
-# 
-# ## Plot the map
-# data(nepacLLhigh)       # DFO BC Coastline data - high resolution
-# plotMap(nepacLLhigh, xlim=c(-128.52, -127.93), ylim=c(51.56, 52.07), col="grey90", bg="white", tckMinor = 0,
-#         xlab="", ylab="", lwd=0.5)
-# box()
-# 
-# #add a scale bar
-# map.scale(x=-128.455, y=51.61, ratio=FALSE, relwidth=0.2)
-# 
-# data("nepacLL")
-# # Try all of BC
-# plotMap(nepacLL, xlim=c(-230, -225), ylim=c(50, 55), col="grey90", bg="white", tckMinor = 0,
-#         xlab="", ylab="", lwd=0.5)
-# box()
-# 
-# 
-# ############## Pacific Coast Map ##################
-# ################################################### #
-# 
-# #creata a data file to make a basemap
-# # this database has a lower resolution (which is fine for large scale map)
-# m <- map_data("world", c("usa", "Canada"))
-# 
-# #this database has a way higher resolution
-# d <- map_data("worldHires", c("Canada", "usa", "Mexico"))
-# 
-# #make a basic map, all one colour
-# # play around with xlim and ylim to change the extent
-# ggplot() + 
-#   geom_polygon(data = d, aes(x=long, y = lat, group = group)) + 
-#   theme_bw() +
-#   coord_map("conic", lat0 = 18, xlim=c(228, 240), ylim=c(47,55))
-
 
 
 # Quick plotting of validation data
@@ -307,3 +214,31 @@ ggplot() + theme_bw()+
 #       panel.grid.major = element_line(colour = NA),
 #       axis.title.y= element_blank(), axis.title.x = element_blank(),
 #       axis.text.y= element_text(size=10), axis.text.x = element_text(size=10))
+
+
+
+# Plot with PBSmapping
+#---------------------
+library(PBSmapping)
+data("nepacLL")
+source("C:/Users/daviessa/Documents/R/Courses/PBS Mapping course/0 Initialize.R")
+
+# another example
+plotMap(nepacLL, col=clr$land, bg=clr$sea)
+
+longitude <- c(-134, -122)
+latitude <- c(48, 55)
+plotMap(nepacLL, col=clr$land, bg=clr$sea, xlim = longitude, ylim = latitude)
+points()
+
+## Plot the map
+data(nepacLLhigh)       # DFO BC Coastline data - high resolution
+plotMap(nepacLLhigh, xlim=c(-128.52, -127.93), ylim=c(51.56, 52.07), col="grey90", bg="white", tckMinor = 0,
+        xlab="", ylab="", lwd=0.5)
+box()
+#add a scale bar
+#map.scale(x=-128.455, y=51.61, ratio=FALSE, relwidth=0.2) # could not find function
+
+
+
+
